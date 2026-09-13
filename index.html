@@ -1,0 +1,806 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>The Classifier Wire</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,500&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper: #ede7d8;
+    --paper-dim: #e2dbc8;
+    --ink: #17213a;
+    --ink-soft: #4d5768;
+    --wire-red: #a83a2c;
+    --amber: #c8891f;
+    --rule: rgba(23, 33, 58, 0.18);
+
+    --c-business: #2f6f4e;
+    --c-tech: #2f5f8f;
+    --c-politics: #8a3636;
+    --c-sport: #b96a1f;
+    --c-entertainment: #6d4587;
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    *{ animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; }
+    #bg-canvas{ display:none; }
+  }
+
+  *{ box-sizing: border-box; }
+
+  html, body{
+    margin:0;
+    padding:0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: 'IBM Plex Mono', monospace;
+  }
+
+  body{
+    position: relative;
+    background-image:
+      repeating-linear-gradient(180deg, rgba(23,33,58,0.025) 0px, rgba(23,33,58,0.025) 1px, transparent 1px, transparent 3px);
+    overflow-x: hidden;
+  }
+
+  /* ================= Background layer ================= */
+
+  .bg-layer{
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    overflow: hidden;
+    pointer-events: none;
+    will-change: transform;
+  }
+
+  /* type: background-position drift, feint ruled paper grid slowly sliding */
+  .bg-grid{
+    position:absolute;
+    inset: -40px;
+    background-image:
+      repeating-linear-gradient(0deg, rgba(23,33,58,0.05) 0, rgba(23,33,58,0.05) 1px, transparent 1px, transparent 42px),
+      repeating-linear-gradient(90deg, rgba(23,33,58,0.035) 0, rgba(23,33,58,0.035) 1px, transparent 1px, transparent 42px);
+    animation: grid-drift 26s linear infinite;
+  }
+
+  @keyframes grid-drift{
+    from{ transform: translate(0,0); }
+    to{ transform: translate(42px, 42px); }
+  }
+
+  /* type: shape morphing, drifting ink-blot blobs */
+  .ink-blob{
+    position:absolute;
+    mix-blend-mode: multiply;
+    filter: blur(2px);
+    opacity: 0.10;
+    animation: blob-morph 18s ease-in-out infinite, blob-drift 34s ease-in-out infinite;
+  }
+
+  .ink-blob.one{
+    width: 420px; height: 420px;
+    top: -120px; left: -100px;
+    background: var(--wire-red);
+    animation-duration: 17s, 30s;
+  }
+
+  .ink-blob.two{
+    width: 340px; height: 340px;
+    bottom: -100px; right: -80px;
+    background: var(--ink);
+    opacity: 0.06;
+    animation-duration: 21s, 38s;
+    animation-delay: -6s, -10s;
+  }
+
+  .ink-blob.three{
+    width: 260px; height: 260px;
+    top: 40%; right: 10%;
+    background: var(--amber);
+    opacity: 0.07;
+    animation-duration: 15s, 26s;
+    animation-delay: -3s, -14s;
+  }
+
+  @keyframes blob-morph{
+    0%   { border-radius: 42% 58% 63% 37% / 41% 44% 56% 59%; }
+    25%  { border-radius: 63% 37% 41% 59% / 55% 47% 53% 45%; }
+    50%  { border-radius: 37% 63% 55% 45% / 63% 41% 59% 37%; }
+    75%  { border-radius: 58% 42% 37% 63% / 44% 59% 41% 56%; }
+    100% { border-radius: 42% 58% 63% 37% / 41% 44% 56% 59%; }
+  }
+
+  @keyframes blob-drift{
+    0%   { transform: translate(0,0) rotate(0deg); }
+    50%  { transform: translate(24px,-18px) rotate(8deg); }
+    100% { transform: translate(0,0) rotate(0deg); }
+  }
+
+  /* type: canvas-driven particle animation (paper-fibre drift) */
+  #bg-canvas{
+    position:absolute;
+    inset:0;
+    opacity: 0.5;
+  }
+
+  /* type: SVG stroke-drawing animation, oscilloscope-style signal trace */
+  .bg-signal{
+    position:absolute;
+    top: 8%;
+    left: 0;
+    width: 100%;
+    height: 90px;
+    opacity: 0.16;
+  }
+
+  .bg-signal path{
+    fill:none;
+    stroke: var(--ink);
+    stroke-width: 1.4;
+    stroke-dasharray: 12 8;
+    animation: signal-flow 6s linear infinite;
+  }
+
+  @keyframes signal-flow{
+    to{ stroke-dashoffset: -400; }
+  }
+
+  /* type: continuous rotation, tape-reel decoration */
+  .reel-deck{
+    position: absolute;
+    top: 24px;
+    right: 28px;
+    display:flex;
+    gap: 10px;
+    opacity: 0.5;
+  }
+
+  .reel{
+    width: 34px; height: 34px;
+    border-radius: 50%;
+    border: 2px solid var(--ink-soft);
+    position: relative;
+    animation: reel-spin 5s linear infinite;
+  }
+
+  .reel::before, .reel::after{
+    content:"";
+    position:absolute;
+    top:50%; left:50%;
+    width: 2px; height: 14px;
+    background: var(--ink-soft);
+    transform-origin: center bottom;
+  }
+  .reel::before{ transform: translate(-50%,-100%) rotate(0deg); }
+  .reel::after{ transform: translate(-50%,-100%) rotate(90deg); }
+
+  @keyframes reel-spin{ to{ transform: rotate(360deg); } }
+
+  /* type: opacity + translateY flicker, teletype scanline sweep */
+  .scanline{
+    position:absolute;
+    left:0; right:0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, rgba(23,33,58,0.14), transparent);
+    animation: scan-sweep 7s ease-in-out infinite;
+  }
+
+  @keyframes scan-sweep{
+    0%   { top: 0%;   opacity: 0; }
+    10%  { opacity: 0.8; }
+    50%  { top: 100%; opacity: 0.8; }
+    60%  { opacity: 0; }
+    100% { top: 100%; opacity: 0; }
+  }
+
+  .wire{
+    position: relative;
+    z-index: 1;
+    max-width: 980px;
+    margin: 0 auto;
+    padding: 48px 28px 80px;
+  }
+
+  /* type: entrance reveal, staggered fade + rise on load */
+  .reveal{
+    opacity: 0;
+    transform: translateY(14px);
+    animation: reveal-in 0.7s cubic-bezier(.2,.7,.2,1) forwards;
+  }
+  .masthead{ animation-delay: 0.05s; }
+  .deskroom{ animation-delay: 0.22s; }
+  .ticker-wrap{ animation-delay: 0.38s; }
+
+  @keyframes reveal-in{
+    to{ opacity: 1; transform: translateY(0); }
+  }
+
+  /* type: blinking cursor (steps animation) */
+  .blink-cursor{
+    display:inline-block;
+    width: 8px;
+    margin-left: 2px;
+    border-right: 2px solid var(--wire-red);
+    animation: cursor-blink 1s steps(1) infinite;
+  }
+
+  @keyframes cursor-blink{
+    50%{ border-color: transparent; }
+  }
+
+  /* type: pulsing glow, idle affordance on the primary action */
+  .transmit-btn{
+    animation: btn-pulse 3.2s ease-in-out infinite;
+  }
+
+  @keyframes btn-pulse{
+    0%, 100%{ box-shadow: 0 0 0 0 rgba(168,58,44,0); }
+    50%{ box-shadow: 0 0 0 6px rgba(168,58,44,0.08); }
+  }
+
+  /* ---------- Masthead ---------- */
+
+  .masthead{
+    border-bottom: 3px double var(--ink);
+    padding-bottom: 22px;
+    margin-bottom: 40px;
+  }
+
+  .masthead-top{
+    display:flex;
+    justify-content: space-between;
+    align-items: baseline;
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    margin-bottom: 18px;
+  }
+
+  .masthead-top .edition{ color: var(--wire-red); font-weight: 600; }
+
+  .nameplate{
+    font-family: 'Fraunces', serif;
+    font-weight: 600;
+    font-size: clamp(2.4rem, 6vw, 3.6rem);
+    line-height: 1;
+    margin: 0 0 14px;
+    letter-spacing: -0.01em;
+  }
+
+  .deck{
+    font-family: 'Fraunces', serif;
+    font-style: italic;
+    font-weight: 500;
+    font-size: 1.05rem;
+    color: var(--ink-soft);
+    max-width: 46ch;
+    margin: 0;
+  }
+
+  /* ---------- Desk layout ---------- */
+
+  .deskroom{
+    display: grid;
+    grid-template-columns: 1.15fr 1fr;
+    gap: 40px;
+  }
+
+  @media (max-width: 760px){
+    .deskroom{ grid-template-columns: 1fr; }
+  }
+
+  .copy-desk, .board-desk{
+    padding-top: 4px;
+  }
+
+  .slip-label{
+    display:block;
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    margin-bottom: 10px;
+  }
+
+  .copy-sheet{
+    width: 100%;
+    min-height: 260px;
+    resize: vertical;
+    background:
+      linear-gradient(var(--paper-dim), var(--paper-dim)) padding-box;
+    border: 1px solid var(--rule);
+    border-left: 3px solid var(--ink);
+    padding: 18px 18px 18px 20px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 14px;
+    line-height: 1.7;
+    color: var(--ink);
+    box-shadow: 3px 3px 0 rgba(23,33,58,0.06);
+  }
+
+  .copy-sheet:focus-visible{
+    outline: 2px solid var(--wire-red);
+    outline-offset: 2px;
+  }
+
+  .transmit-btn{
+    margin-top: 16px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    background: var(--ink);
+    color: var(--paper);
+    border: none;
+    padding: 13px 22px;
+    cursor: pointer;
+    transition: background 0.15s ease, transform 0.1s ease;
+  }
+
+  .transmit-btn:hover{ background: #232f4f; }
+  .transmit-btn:active{ transform: translateY(1px); }
+  .transmit-btn:focus-visible{ outline: 2px solid var(--wire-red); outline-offset: 3px; }
+
+  .transmit-btn:disabled{
+    background: var(--ink-soft);
+    cursor: progress;
+  }
+
+  /* ---------- Split flap board ---------- */
+
+  .board-label{
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    margin-bottom: 10px;
+  }
+
+  .split-flap{
+    display:flex;
+    gap: 4px;
+    flex-wrap: wrap;
+    background: var(--ink);
+    padding: 16px;
+    margin-bottom: 28px;
+  }
+
+  .flap-cell{
+    position: relative;
+    width: 30px;
+    height: 42px;
+    background: #0f1729;
+    border-radius: 2px;
+    overflow: hidden;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    box-shadow: inset 0 0 0 1px rgba(237,231,216,0.06);
+  }
+
+  .flap-cell::after{
+    content:"";
+    position:absolute;
+    left:0; right:0; top:50%;
+    height:1px;
+    background: rgba(0,0,0,0.55);
+  }
+
+  .flap-cell span{
+    font-family: 'IBM Plex Mono', monospace;
+    font-weight: 600;
+    font-size: 20px;
+    color: var(--paper);
+  }
+
+  .flap-cell.flipping span{
+    animation: flap-turn 0.09s linear;
+  }
+
+  @keyframes flap-turn{
+    0%   { transform: rotateX(0deg);   opacity: 1; }
+    45%  { transform: rotateX(85deg);  opacity: 0.3; }
+    55%  { transform: rotateX(-85deg); opacity: 0.3; }
+    100% { transform: rotateX(0deg);   opacity: 1; }
+  }
+
+  .flap-cell.settled{
+    box-shadow: inset 0 0 0 1px rgba(200,137,31,0.5);
+  }
+
+  /* ---------- Confidence list ---------- */
+
+  .confidence-list{ display:flex; flex-direction:column; gap: 12px; }
+
+  .confidence-row{
+    display:grid;
+    grid-template-columns: 108px 1fr 46px;
+    align-items:center;
+    gap: 10px;
+    font-size: 12.5px;
+  }
+
+  .confidence-row .cat-name{
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--ink-soft);
+  }
+
+  .confidence-row.is-top .cat-name{ color: var(--ink); font-weight: 600; }
+
+  .meter{
+    height: 8px;
+    background: var(--paper-dim);
+    border: 1px solid var(--rule);
+    position: relative;
+  }
+
+  .meter-fill{
+    height: 100%;
+    width: 0%;
+    transition: width 0.65s cubic-bezier(.2,.8,.2,1);
+  }
+
+  .confidence-row .pct{
+    text-align: right;
+    color: var(--ink-soft);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .confidence-row.is-top .pct{ color: var(--ink); font-weight: 600; }
+
+  /* ---------- Ticker ---------- */
+
+  .ticker-wrap{
+    margin-top: 56px;
+    border-top: 1px solid var(--rule);
+    border-bottom: 1px solid var(--rule);
+    overflow: hidden;
+    padding: 10px 0;
+  }
+
+  .ticker{
+    display: inline-flex;
+    white-space: nowrap;
+    gap: 48px;
+    animation: scroll-ticker 32s linear infinite;
+    font-size: 12px;
+    letter-spacing: 0.02em;
+    color: var(--ink-soft);
+  }
+
+  .ticker-wrap:hover .ticker{ animation-play-state: paused; }
+
+  .ticker span.sep{ color: var(--wire-red); }
+
+  .source-note{
+    margin-top: 18px;
+    font-size: 11px;
+    color: var(--ink-soft);
+    text-align: center;
+  }
+
+  .source-note a{
+    color: var(--ink-soft);
+    text-decoration-color: var(--rule);
+  }
+
+  .source-note a:hover{ color: var(--ink); text-decoration-color: var(--wire-red); }
+
+  @keyframes scroll-ticker{
+    from{ transform: translateX(0); }
+    to{ transform: translateX(-50%); }
+  }
+</style>
+</head>
+<body>
+
+<div class="bg-layer" id="bg-layer">
+  <div class="bg-grid"></div>
+  <div class="ink-blob one"></div>
+  <div class="ink-blob two"></div>
+  <div class="ink-blob three"></div>
+  <canvas id="bg-canvas"></canvas>
+  <svg class="bg-signal" viewBox="0 0 800 90" preserveAspectRatio="none">
+    <path d="M0,45 L60,45 L80,10 L100,80 L120,45 L200,45 L220,20 L240,70 L260,45 L800,45" />
+  </svg>
+  <div class="scanline"></div>
+</div>
+
+<div class="reel-deck" aria-hidden="true">
+  <div class="reel"></div>
+  <div class="reel"></div>
+</div>
+
+<div class="wire">
+
+  <header class="masthead reveal">
+    <div class="masthead-top">
+      <span class="edition">Demo Edition</span>
+      <span id="dateline"></span><span class="blink-cursor" aria-hidden="true"></span>
+    </div>
+    <h1 class="nameplate">The Classifier Wire</h1>
+    <p class="deck">Paste a news article and the desk will sort it onto the board, using the same five desks as the BBC News Articles dataset — business, tech, politics, sport, or entertainment.</p>
+  </header>
+
+  <main class="deskroom reveal">
+
+    <section class="copy-desk">
+      <label class="slip-label" for="copy-input">Incoming copy</label>
+      <textarea id="copy-input" class="copy-sheet" spellcheck="false">Ministers announced a new budget package today, with the chancellor pledging support for small businesses hit hardest by rising costs. Markets reacted cautiously as investors awaited details on tax policy.</textarea>
+      <button id="transmit-btn" class="transmit-btn">Transmit to desk</button>
+    </section>
+
+    <section class="board-desk">
+      <div class="board-label">Assigned desk</div>
+      <div class="split-flap" id="flap-board"></div>
+
+      <div class="board-label">Signal strength by desk</div>
+      <div class="confidence-list" id="confidence-list"></div>
+    </section>
+
+  </main>
+
+  <footer class="ticker-wrap reveal">
+    <div class="ticker" id="ticker"></div>
+  </footer>
+
+  <p class="source-note">Demo desk logic only — categories mirror the <a href="https://www.kaggle.com/datasets/bhavikjikadara/bbc-news-articles" target="_blank" rel="noopener">BBC News Articles</a> dataset used in the training notebook.</p>
+
+</div>
+
+<script>
+  // ---------- Setup ----------
+
+  const CATEGORIES = ["business", "tech", "politics", "sport", "entertainment"];
+  const CATEGORY_COLORS = {
+    business: "var(--c-business)",
+    tech: "var(--c-tech)",
+    politics: "var(--c-politics)",
+    sport: "var(--c-sport)",
+    entertainment: "var(--c-entertainment)"
+  };
+
+  const KEYWORDS = {
+    business: ["market","economy","shares","stock","profit","company","trade","bank","budget","chancellor","investor","growth","firm","tax","export","deal","revenue","jobs","inflation","industry"],
+    tech: ["software","app","internet","computer","device","technology","data","online","phone","digital","ai","robot","chip","cyber","gadget","network","startup","code","platform","browser"],
+    politics: ["government","minister","election","parliament","policy","vote","president","law","party","campaign","bill","senate","diplomat","cabinet","referendum","opposition","legislation"],
+    sport: ["match","team","player","goal","championship","league","coach","tournament","score","cup","stadium","athlete","medal","race","final","season","club","injury"],
+    entertainment: ["film","movie","album","actor","singer","music","celebrity","award","show","concert","festival","director","star","tv","series","box office","premiere","chart"]
+  };
+
+  const FLAP_WIDTH = 13; // fits "ENTERTAINMENT"
+  const FLAP_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ ";
+
+  const boardEl = document.getElementById("flap-board");
+  const confList = document.getElementById("confidence-list");
+  const dateline = document.getElementById("dateline");
+  const ticker = document.getElementById("ticker");
+  const btn = document.getElementById("transmit-btn");
+  const input = document.getElementById("copy-input");
+
+  // ---------- Dateline ----------
+
+  dateline.textContent = new Date().toLocaleDateString(undefined, {
+    weekday: "long", year: "numeric", month: "long", day: "numeric"
+  });
+
+  // ---------- Build flap board cells ----------
+
+  const cells = [];
+  for (let i = 0; i < FLAP_WIDTH; i++){
+    const cell = document.createElement("div");
+    cell.className = "flap-cell";
+    const span = document.createElement("span");
+    span.textContent = "";
+    cell.appendChild(span);
+    boardEl.appendChild(cell);
+    cells.push(cell);
+  }
+
+  // ---------- Build confidence rows ----------
+
+  const rowEls = {};
+  CATEGORIES.forEach(cat => {
+    const row = document.createElement("div");
+    row.className = "confidence-row";
+    row.innerHTML = `
+      <div class="cat-name">${cat}</div>
+      <div class="meter"><div class="meter-fill" style="background:${CATEGORY_COLORS[cat]}"></div></div>
+      <div class="pct">0%</div>
+    `;
+    confList.appendChild(row);
+    rowEls[cat] = row;
+  });
+
+  // ---------- Ticker content ----------
+
+  const HEADLINES = [
+    "Markets steady after chancellor's budget statement",
+    "New chip design promises faster on-device AI",
+    "Coalition talks continue ahead of key vote",
+    "Underdogs reach final after extra-time thriller",
+    "Director's new film tops opening weekend chart",
+    "Retailers report stronger-than-expected quarter",
+    "Startup unveils translation earpiece at launch event",
+    "Parliament debates changes to trade legislation",
+  ];
+  const tickerText = HEADLINES.map(h => `${h} <span class="sep">//</span>`).join(" ");
+  ticker.innerHTML = tickerText + " " + tickerText; // duplicated for seamless loop
+
+  // ---------- Classifier (lightweight keyword scoring for demo purposes) ----------
+
+  function classify(text){
+    const lower = text.toLowerCase();
+    const scores = {};
+    CATEGORIES.forEach(cat => {
+      let count = 0;
+      KEYWORDS[cat].forEach(word => {
+        const re = new RegExp("\\b" + word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\b", "g");
+        const matches = lower.match(re);
+        if (matches) count += matches.length;
+      });
+      scores[cat] = count;
+    });
+
+    const total = Object.values(scores).reduce((a,b) => a+b, 0);
+    let pct = {};
+    if (total === 0){
+      // no keyword signal — flat baseline distribution
+      CATEGORIES.forEach(cat => pct[cat] = 20);
+    } else {
+      // soften towards a baseline so it never reads as 0%/100% on short text
+      CATEGORIES.forEach(cat => {
+        pct[cat] = Math.round(((scores[cat] / total) * 0.8 + 0.2 / CATEGORIES.length) * 100);
+      });
+      const sum = Object.values(pct).reduce((a,b) => a+b, 0);
+      const diff = 100 - sum;
+      const topCat = Object.keys(pct).reduce((a,b) => pct[a] >= pct[b] ? a : b);
+      pct[topCat] += diff;
+    }
+    return pct;
+  }
+
+  // ---------- Flap board animation ----------
+
+  function randomLetter(){
+    return FLAP_ALPHABET[Math.floor(Math.random() * FLAP_ALPHABET.length)];
+  }
+
+  function flipCellTo(cell, finalChar, steps, stepDelay){
+    let step = 0;
+    const span = cell.querySelector("span");
+    function tick(){
+      cell.classList.remove("flipping");
+      void cell.offsetWidth; // force reflow so the animation can retrigger
+      cell.classList.add("flipping");
+      if (step < steps - 1){
+        span.textContent = randomLetter();
+      } else {
+        span.textContent = finalChar;
+        cell.classList.add("settled");
+      }
+      step++;
+      if (step < steps){
+        setTimeout(tick, stepDelay);
+      }
+    }
+    tick();
+  }
+
+  function revealCategory(catName){
+    const padded = catName.toUpperCase().padEnd(FLAP_WIDTH, " ");
+    cells.forEach(c => c.classList.remove("settled"));
+    for (let i = 0; i < FLAP_WIDTH; i++){
+      const startDelay = i * 45;
+      const steps = 6 + Math.floor(Math.random() * 4);
+      setTimeout(() => flipCellTo(cells[i], padded[i], steps, 55), startDelay);
+    }
+  }
+
+  // ---------- Run classification + update UI ----------
+
+  function runClassification(){
+    const text = input.value.trim();
+    if (!text) return;
+
+    btn.disabled = true;
+    btn.textContent = "Transmitting…";
+
+    const pct = classify(text);
+    const topCat = Object.keys(pct).reduce((a,b) => pct[a] >= pct[b] ? a : b);
+
+    revealCategory(topCat);
+
+    CATEGORIES.forEach(cat => {
+      const row = rowEls[cat];
+      row.classList.toggle("is-top", cat === topCat);
+      const fill = row.querySelector(".meter-fill");
+      const pctEl = row.querySelector(".pct");
+      setTimeout(() => {
+        fill.style.width = pct[cat] + "%";
+        pctEl.textContent = pct[cat] + "%";
+      }, 200);
+    });
+
+    setTimeout(() => {
+      btn.disabled = false;
+      btn.textContent = "Transmit to desk";
+    }, FLAP_WIDTH * 45 + 600);
+  }
+
+  btn.addEventListener("click", runClassification);
+
+  // Run once on load with the sample copy already in the textarea
+  window.addEventListener("load", () => setTimeout(runClassification, 400));
+
+  // ---------- Background: canvas particle drift (paper-fibre motes) ----------
+
+  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const canvas = document.getElementById("bg-canvas");
+  const ctx = canvas.getContext("2d");
+  let particles = [];
+
+  function resizeCanvas(){
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+  }
+
+  function makeParticles(){
+    const count = Math.round((canvas.width * canvas.height) / 60000);
+    particles = Array.from({ length: count }, () => ({
+      x: Math.random() * canvas.width,
+      y: Math.random() * canvas.height,
+      r: 0.6 + Math.random() * 1.6,
+      speedY: 0.12 + Math.random() * 0.28,
+      drift: (Math.random() - 0.5) * 0.15,
+      alpha: 0.08 + Math.random() * 0.16
+    }));
+  }
+
+  function drawParticles(){
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    particles.forEach(p => {
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(23,33,58,${p.alpha})`;
+      ctx.fill();
+
+      if (!reduceMotion){
+        p.y -= p.speedY;
+        p.x += p.drift;
+        if (p.y < -10){
+          p.y = canvas.height + 10;
+          p.x = Math.random() * canvas.width;
+        }
+      }
+    });
+    if (!reduceMotion){
+      requestAnimationFrame(drawParticles);
+    }
+  }
+
+  resizeCanvas();
+  makeParticles();
+  drawParticles();
+  window.addEventListener("resize", () => { resizeCanvas(); makeParticles(); });
+
+  // ---------- Background: mouse parallax ----------
+
+  if (!reduceMotion){
+    const bgLayer = document.getElementById("bg-layer");
+    window.addEventListener("mousemove", (e) => {
+      const dx = (e.clientX / window.innerWidth - 0.5) * 16;
+      const dy = (e.clientY / window.innerHeight - 0.5) * 16;
+      bgLayer.style.transform = `translate(${dx}px, ${dy}px)`;
+    });
+  }
+</script>
+
+</body>
+</html>
